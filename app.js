@@ -1,6 +1,10 @@
 (function initializeCalculator(globalScope) {
   "use strict";
 
+  const DISPLAY_MAX_LENGTH = 12;
+  const GENERIC_ERROR_MESSAGE = "Error";
+  const DIVIDE_BY_ZERO_MESSAGE = "Cannot divide by 0";
+
   const OPERATIONS = {
     add(left, right) {
       return left + right;
@@ -23,7 +27,54 @@
       pendingOperator: null,
       waitingForOperand: false,
       displayValue: "0",
+      error: null,
     };
+  }
+
+  function trimFormattedNumber(value) {
+    return value
+      .replace(/(\.\d*?)0+(e|$)/, "$1$2")
+      .replace(/\.(e|$)/, "$1")
+      .replace("e+", "e");
+  }
+
+  function formatNumberForDisplay(value) {
+    const number = Number(value);
+
+    if (!Number.isFinite(number)) {
+      return GENERIC_ERROR_MESSAGE;
+    }
+
+    if (Object.is(number, -0)) {
+      return "0";
+    }
+
+    const integerText = String(Math.trunc(Math.abs(number)));
+    const signLength = number < 0 ? 1 : 0;
+    const wholeNumberLength = integerText.length + signLength;
+    const rawText = String(number);
+
+    if (!rawText.includes("e") && rawText.length <= DISPLAY_MAX_LENGTH) {
+      return rawText;
+    }
+
+    const absoluteNumber = Math.abs(number);
+
+    if (absoluteNumber !== 0 && (absoluteNumber >= 1e12 || absoluteNumber < 1e-6)) {
+      return trimFormattedNumber(number.toExponential(6));
+    }
+
+    const availableFractionDigits = DISPLAY_MAX_LENGTH - wholeNumberLength - 1;
+
+    if (availableFractionDigits > 0) {
+      const fixedText = trimFormattedNumber(number.toFixed(Math.min(8, availableFractionDigits)));
+
+      if (fixedText.length <= DISPLAY_MAX_LENGTH) {
+        return fixedText;
+      }
+    }
+
+    return trimFormattedNumber(number.toPrecision(8));
   }
 
   function normalizeDigit(digit) {
@@ -53,7 +104,38 @@
 
     function setCurrentOperand(value) {
       state.currentOperand = String(value);
-      state.displayValue = state.currentOperand;
+      state.displayValue = formatNumberForDisplay(value);
+    }
+
+    function resetState() {
+      Object.assign(state, createInitialState());
+    }
+
+    function setError(message) {
+      state.currentOperand = "0";
+      state.storedValue = null;
+      state.pendingOperator = null;
+      state.waitingForOperand = true;
+      state.displayValue = message;
+      state.error = message;
+    }
+
+    function applyPendingOperation(inputValue) {
+      if (state.pendingOperator === "divide" && inputValue === 0) {
+        setError(DIVIDE_BY_ZERO_MESSAGE);
+        return false;
+      }
+
+      const result = calculateResult(state.storedValue, state.pendingOperator, inputValue);
+
+      if (!Number.isFinite(result)) {
+        setError(GENERIC_ERROR_MESSAGE);
+        return false;
+      }
+
+      state.storedValue = result;
+      setCurrentOperand(result);
+      return true;
     }
 
     function snapshot() {
@@ -63,11 +145,16 @@
         pendingOperator: state.pendingOperator,
         waitingForOperand: state.waitingForOperand,
         displayValue: state.displayValue,
+        error: state.error,
       };
     }
 
     function inputDigit(digit) {
       const value = normalizeDigit(digit);
+
+      if (state.error) {
+        return snapshot();
+      }
 
       if (state.waitingForOperand) {
         setCurrentOperand(value);
@@ -81,12 +168,17 @@
 
     function chooseOperator(operator) {
       const nextOperator = normalizeOperator(operator);
+
+      if (state.error) {
+        return snapshot();
+      }
+
       const inputValue = Number(state.currentOperand);
 
       if (state.pendingOperator && !state.waitingForOperand) {
-        const result = calculateResult(state.storedValue, state.pendingOperator, inputValue);
-        state.storedValue = result;
-        setCurrentOperand(result);
+        if (!applyPendingOperation(inputValue)) {
+          return snapshot();
+        }
       } else if (state.storedValue === null) {
         state.storedValue = inputValue;
       }
@@ -98,18 +190,28 @@
     }
 
     function calculate() {
+      if (state.error) {
+        return snapshot();
+      }
+
       if (!state.pendingOperator || state.storedValue === null || state.waitingForOperand) {
         return snapshot();
       }
 
       const inputValue = Number(state.currentOperand);
-      const result = calculateResult(state.storedValue, state.pendingOperator, inputValue);
 
-      state.storedValue = result;
+      if (!applyPendingOperation(inputValue)) {
+        return snapshot();
+      }
+
       state.pendingOperator = null;
       state.waitingForOperand = true;
-      setCurrentOperand(result);
 
+      return snapshot();
+    }
+
+    function clear() {
+      resetState();
       return snapshot();
     }
 
@@ -117,6 +219,7 @@
       inputDigit,
       chooseOperator,
       calculate,
+      clear,
       getDisplayValue() {
         return state.displayValue;
       },
@@ -138,6 +241,7 @@
   if (typeof module === "object" && module.exports) {
     module.exports = {
       createCalculatorEngine,
+      formatNumberForDisplay,
     };
   }
 })(typeof globalThis === "object" ? globalThis : window);
