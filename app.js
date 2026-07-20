@@ -271,19 +271,125 @@
   }
 
   const calculatorEngine = createCalculatorEngine();
+  const pressFeedbackTimers = new WeakMap();
+
+  function dispatchCalculatorAction(engine, action, data = {}) {
+    switch (action) {
+      case "digit":
+        return engine.inputDigit(data.value);
+      case "decimal":
+        return engine.inputDecimal();
+      case "operator":
+        return engine.chooseOperator(data.operator);
+      case "equals":
+        return engine.calculate();
+      case "clear":
+        return engine.clear();
+      case "percent":
+        return engine.getState();
+      default:
+        return engine.getState();
+    }
+  }
+
+  function updateDisplay(displayElement, state) {
+    displayElement.textContent = state.displayValue;
+    displayElement.dataset.state = state.error ? "error" : "ready";
+  }
+
+  function showPressFeedback(button) {
+    if (pressFeedbackTimers.has(button)) {
+      globalScope.clearTimeout(pressFeedbackTimers.get(button));
+    }
+
+    button.classList.add("is-pressing");
+    pressFeedbackTimers.set(
+      button,
+      globalScope.setTimeout(() => {
+        button.classList.remove("is-pressing");
+        pressFeedbackTimers.delete(button);
+      }, 140),
+    );
+  }
+
+  function bindCalculatorControls(root, engine = calculatorEngine) {
+    const displayElement = root.querySelector("#calculator-display");
+    const buttons = Array.from(root.querySelectorAll("button[data-action]"));
+
+    if (!displayElement || buttons.length === 0) {
+      return {
+        bound: false,
+        buttonCount: 0,
+      };
+    }
+
+    updateDisplay(displayElement, engine.getState());
+
+    buttons.forEach((button) => {
+      if (button.dataset.calculatorBound === "true") {
+        return;
+      }
+
+      button.dataset.calculatorBound = "true";
+
+      button.addEventListener("pointerdown", () => {
+        showPressFeedback(button);
+      });
+
+      button.addEventListener("click", () => {
+        showPressFeedback(button);
+
+        try {
+          const state = dispatchCalculatorAction(engine, button.dataset.action, {
+            operator: button.dataset.operator,
+            value: button.dataset.value,
+          });
+          updateDisplay(displayElement, state);
+        } catch (error) {
+          console.error("Calculator input failed", error);
+          updateDisplay(displayElement, {
+            displayValue: GENERIC_ERROR_MESSAGE,
+            error: GENERIC_ERROR_MESSAGE,
+          });
+        }
+      });
+    });
+
+    return {
+      bound: true,
+      buttonCount: buttons.length,
+    };
+  }
+
+  function startBrowserApp() {
+    if (!globalScope.document) {
+      return;
+    }
+
+    bindCalculatorControls(globalScope.document);
+    globalScope.document.documentElement.dataset.appReady = "true";
+  }
 
   globalScope.CalculatorEngine = {
     create: createCalculatorEngine,
+    dispatchAction: dispatchCalculatorAction,
+    bindControls: bindCalculatorControls,
   };
   globalScope.calculatorEngine = calculatorEngine;
 
   if (globalScope.document) {
-    globalScope.document.documentElement.dataset.appReady = "true";
+    if (globalScope.document.readyState === "loading") {
+      globalScope.document.addEventListener("DOMContentLoaded", startBrowserApp, { once: true });
+    } else {
+      startBrowserApp();
+    }
   }
 
   if (typeof module === "object" && module.exports) {
     module.exports = {
+      bindCalculatorControls,
       createCalculatorEngine,
+      dispatchCalculatorAction,
       formatNumberForDisplay,
     };
   }
