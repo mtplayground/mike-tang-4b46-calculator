@@ -59,11 +59,35 @@ h1 {
   color: var(--muted);
 }
 
+.calculator__readout {
+  position: relative;
+  margin: 0 0 var(--control-gap);
+}
+
+.calculator__memory-indicator {
+  position: absolute;
+  top: 12px;
+  left: 14px;
+  z-index: 1;
+  min-width: 20px;
+  min-height: 20px;
+  display: inline-grid;
+  place-items: center;
+  font-size: 0.75rem;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--operator-bg);
+}
+
+.calculator__memory-indicator[hidden] {
+  display: none;
+}
+
 .calculator__display {
   display: block;
   width: 100%;
   min-height: var(--display-height);
-  margin: 0 0 var(--control-gap);
+  margin: 0;
   padding: 22px 18px;
   overflow: hidden;
   font-size: var(--display-font-size);
@@ -81,8 +105,16 @@ h1 {
   display: grid;
   grid-template-columns: minmax(0, 1fr) var(--operator-column);
   grid-template-areas:
+    "memory memory"
     "utilities operators"
     "keypad operators";
+  gap: var(--control-gap);
+}
+
+.calculator__memory {
+  grid-area: memory;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: var(--control-gap);
 }
 
@@ -135,6 +167,12 @@ button:focus-visible {
 }
 
 .calculator__utilities button {
+  background: var(--utility-bg);
+}
+
+.calculator__memory button {
+  min-height: max(44px, calc(var(--button-size) * 0.72));
+  font-size: 1rem;
   background: var(--utility-bg);
 }
 
