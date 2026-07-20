@@ -387,6 +387,104 @@
     }
   }
 
+  function isEditableTarget(target) {
+    if (!target) {
+      return false;
+    }
+
+    const tagName = target.tagName;
+
+    return target.isContentEditable
+      || tagName === "INPUT"
+      || tagName === "TEXTAREA"
+      || tagName === "SELECT";
+  }
+
+  function mapKeyboardEventToAction(event) {
+    if (
+      event.defaultPrevented
+      || event.altKey
+      || event.ctrlKey
+      || event.metaKey
+      || isEditableTarget(event.target)
+    ) {
+      return null;
+    }
+
+    const key = event.key;
+
+    if (/^[0-9]$/.test(key)) {
+      return {
+        action: "digit",
+        data: { value: key },
+      };
+    }
+
+    if (key === "." || key === "Decimal") {
+      return { action: "decimal" };
+    }
+
+    if (key === "%") {
+      return { action: "percent" };
+    }
+
+    if (key === "Enter" || key === "=") {
+      return { action: "equals" };
+    }
+
+    if (key === "Escape" || key === "c" || key === "C") {
+      return { action: "clear" };
+    }
+
+    if (key === "+") {
+      return {
+        action: "operator",
+        data: { operator: "add" },
+      };
+    }
+
+    if (key === "-" || key === "−") {
+      return {
+        action: "operator",
+        data: { operator: "subtract" },
+      };
+    }
+
+    if (key === "*") {
+      return {
+        action: "operator",
+        data: { operator: "multiply" },
+      };
+    }
+
+    if (key === "/") {
+      return {
+        action: "operator",
+        data: { operator: "divide" },
+      };
+    }
+
+    return null;
+  }
+
+  function findButtonForAction(buttons, mappedAction) {
+    return buttons.find((button) => {
+      if (button.dataset.action !== mappedAction.action) {
+        return false;
+      }
+
+      if (mappedAction.action === "digit") {
+        return button.dataset.value === mappedAction.data.value;
+      }
+
+      if (mappedAction.action === "operator") {
+        return button.dataset.operator === mappedAction.data.operator;
+      }
+
+      return true;
+    });
+  }
+
   function updateDisplay(displayElement, state, memoryIndicator) {
     displayElement.textContent = state.displayValue;
     displayElement.dataset.state = state.error ? "error" : "ready";
@@ -409,6 +507,43 @@
         pressFeedbackTimers.delete(button);
       }, 140),
     );
+  }
+
+  function bindKeyboardControls(root, engine, displayElement, memoryIndicator, buttons) {
+    if (root.calculatorKeyboardBound === true || typeof root.addEventListener !== "function") {
+      return false;
+    }
+
+    root.calculatorKeyboardBound = true;
+
+    root.addEventListener("keydown", (event) => {
+      const mappedAction = mapKeyboardEventToAction(event);
+
+      if (!mappedAction) {
+        return;
+      }
+
+      event.preventDefault();
+
+      const matchingButton = findButtonForAction(buttons, mappedAction);
+
+      if (matchingButton) {
+        showPressFeedback(matchingButton);
+      }
+
+      try {
+        const state = dispatchCalculatorAction(engine, mappedAction.action, mappedAction.data);
+        updateDisplay(displayElement, state, memoryIndicator);
+      } catch (error) {
+        console.error("Calculator keyboard input failed", error);
+        updateDisplay(displayElement, {
+          displayValue: GENERIC_ERROR_MESSAGE,
+          error: GENERIC_ERROR_MESSAGE,
+        }, memoryIndicator);
+      }
+    });
+
+    return true;
   }
 
   function bindCalculatorControls(root, engine = calculatorEngine) {
@@ -455,9 +590,12 @@
       });
     });
 
+    const keyboardBound = bindKeyboardControls(root, engine, displayElement, memoryIndicator, buttons);
+
     return {
       bound: true,
       buttonCount: buttons.length,
+      keyboardBound,
     };
   }
 
@@ -474,6 +612,7 @@
     create: createCalculatorEngine,
     dispatchAction: dispatchCalculatorAction,
     bindControls: bindCalculatorControls,
+    mapKeyboardEvent: mapKeyboardEventToAction,
   };
   globalScope.calculatorEngine = calculatorEngine;
 
@@ -491,6 +630,7 @@
       createCalculatorEngine,
       dispatchCalculatorAction,
       formatNumberForDisplay,
+      mapKeyboardEventToAction,
     };
   }
 })(typeof globalThis === "object" ? globalThis : window);
