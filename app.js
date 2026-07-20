@@ -28,6 +28,7 @@
       waitingForOperand: false,
       displayValue: "0",
       error: null,
+      memoryValue: 0,
     };
   }
 
@@ -120,7 +121,8 @@
     }
 
     function resetState() {
-      Object.assign(state, createInitialState());
+      const memoryValue = state.memoryValue;
+      Object.assign(state, createInitialState(), { memoryValue });
     }
 
     function setError(message) {
@@ -169,6 +171,8 @@
         waitingForOperand: state.waitingForOperand,
         displayValue: state.displayValue,
         error: state.error,
+        memoryValue: state.memoryValue,
+        memoryActive: state.memoryValue !== 0,
       };
     }
 
@@ -281,6 +285,57 @@
       return snapshot();
     }
 
+    function setMemoryValue(value) {
+      state.memoryValue = Object.is(value, -0) ? 0 : value;
+    }
+
+    function addToMemory() {
+      if (state.error) {
+        return snapshot();
+      }
+
+      const result = state.memoryValue + Number(state.currentOperand);
+
+      if (!Number.isFinite(result)) {
+        setError(GENERIC_ERROR_MESSAGE);
+        return snapshot();
+      }
+
+      setMemoryValue(result);
+      return snapshot();
+    }
+
+    function subtractFromMemory() {
+      if (state.error) {
+        return snapshot();
+      }
+
+      const result = state.memoryValue - Number(state.currentOperand);
+
+      if (!Number.isFinite(result)) {
+        setError(GENERIC_ERROR_MESSAGE);
+        return snapshot();
+      }
+
+      setMemoryValue(result);
+      return snapshot();
+    }
+
+    function recallMemory() {
+      if (state.error) {
+        return snapshot();
+      }
+
+      if (state.pendingOperator === null) {
+        state.storedValue = null;
+      }
+
+      setCurrentOperand(state.memoryValue);
+      state.waitingForOperand = false;
+
+      return snapshot();
+    }
+
     function clear() {
       resetState();
       return snapshot();
@@ -290,10 +345,13 @@
       inputDigit,
       inputDecimal,
       applyPercent,
+      addToMemory,
       chooseOperator,
       calculate,
       clear,
+      recallMemory,
       reset: clear,
+      subtractFromMemory,
       getDisplayValue() {
         return state.displayValue;
       },
@@ -318,14 +376,24 @@
         return engine.clear();
       case "percent":
         return engine.applyPercent();
+      case "memory-add":
+        return engine.addToMemory();
+      case "memory-subtract":
+        return engine.subtractFromMemory();
+      case "memory-recall":
+        return engine.recallMemory();
       default:
         return engine.getState();
     }
   }
 
-  function updateDisplay(displayElement, state) {
+  function updateDisplay(displayElement, state, memoryIndicator) {
     displayElement.textContent = state.displayValue;
     displayElement.dataset.state = state.error ? "error" : "ready";
+
+    if (memoryIndicator) {
+      memoryIndicator.hidden = !state.memoryActive;
+    }
   }
 
   function showPressFeedback(button) {
@@ -345,6 +413,7 @@
 
   function bindCalculatorControls(root, engine = calculatorEngine) {
     const displayElement = root.querySelector("#calculator-display");
+    const memoryIndicator = root.querySelector("#memory-indicator");
     const buttons = Array.from(root.querySelectorAll("button[data-action]"));
 
     if (!displayElement || buttons.length === 0) {
@@ -354,7 +423,7 @@
       };
     }
 
-    updateDisplay(displayElement, engine.getState());
+    updateDisplay(displayElement, engine.getState(), memoryIndicator);
 
     buttons.forEach((button) => {
       if (button.dataset.calculatorBound === "true") {
@@ -375,13 +444,13 @@
             operator: button.dataset.operator,
             value: button.dataset.value,
           });
-          updateDisplay(displayElement, state);
+          updateDisplay(displayElement, state, memoryIndicator);
         } catch (error) {
           console.error("Calculator input failed", error);
           updateDisplay(displayElement, {
             displayValue: GENERIC_ERROR_MESSAGE,
             error: GENERIC_ERROR_MESSAGE,
-          });
+          }, memoryIndicator);
         }
       });
     });

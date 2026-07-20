@@ -14,16 +14,32 @@
           <h1 id="app-title">Calculator</h1>
         </header>
 
-        <output
-          class="calculator__display"
-          id="calculator-display"
-          aria-live="polite"
-          aria-label="Calculator display"
-        >
-          0
-        </output>
+        <div class="calculator__readout">
+          <span
+            class="calculator__memory-indicator"
+            id="memory-indicator"
+            aria-label="Memory contains a value"
+            hidden
+          >
+            M
+          </span>
+          <output
+            class="calculator__display"
+            id="calculator-display"
+            aria-live="polite"
+            aria-label="Calculator display"
+          >
+            0
+          </output>
+        </div>
 
         <div class="calculator__controls" role="group" aria-label="Calculator controls">
+          <div class="calculator__memory" role="group" aria-label="Memory controls">
+            <button type="button" data-action="memory-add" aria-label="Add display value to memory">M+</button>
+            <button type="button" data-action="memory-subtract" aria-label="Subtract display value from memory">M−</button>
+            <button type="button" data-action="memory-recall" aria-label="Recall memory value">MR</button>
+          </div>
+
           <div class="calculator__utilities" role="group" aria-label="Utility controls">
             <button type="button" data-action="clear" aria-label="Clear calculator">C</button>
             <button type="button" data-action="percent" aria-label="Percent">%</button>
