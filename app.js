@@ -77,6 +77,16 @@
     return trimFormattedNumber(number.toPrecision(8));
   }
 
+  function formatOperandForDisplay(value) {
+    const text = String(value);
+
+    if (/^-?\d+\.\d*$/.test(text) && text.length <= DISPLAY_MAX_LENGTH) {
+      return text;
+    }
+
+    return formatNumberForDisplay(value);
+  }
+
   function normalizeDigit(digit) {
     const value = String(digit);
 
@@ -102,9 +112,11 @@
   function createCalculatorEngine() {
     const state = createInitialState();
 
-    function setCurrentOperand(value) {
+    function setCurrentOperand(value, options = {}) {
       state.currentOperand = String(value);
-      state.displayValue = formatNumberForDisplay(value);
+      state.displayValue = options.preserveInput
+        ? formatOperandForDisplay(value)
+        : formatNumberForDisplay(value);
     }
 
     function resetState() {
@@ -157,12 +169,41 @@
       }
 
       if (state.waitingForOperand) {
-        setCurrentOperand(value);
+        if (state.pendingOperator === null) {
+          state.storedValue = null;
+        }
+
+        setCurrentOperand(value, { preserveInput: true });
         state.waitingForOperand = false;
         return snapshot();
       }
 
-      setCurrentOperand(state.currentOperand === "0" ? value : state.currentOperand + value);
+      setCurrentOperand(state.currentOperand === "0" ? value : state.currentOperand + value, {
+        preserveInput: true,
+      });
+      return snapshot();
+    }
+
+    function inputDecimal() {
+      if (state.error) {
+        return snapshot();
+      }
+
+      if (state.waitingForOperand) {
+        if (state.pendingOperator === null) {
+          state.storedValue = null;
+        }
+
+        setCurrentOperand("0.", { preserveInput: true });
+        state.waitingForOperand = false;
+        return snapshot();
+      }
+
+      if (state.currentOperand.includes(".")) {
+        return snapshot();
+      }
+
+      setCurrentOperand(`${state.currentOperand}.`, { preserveInput: true });
       return snapshot();
     }
 
@@ -217,9 +258,11 @@
 
     return {
       inputDigit,
+      inputDecimal,
       chooseOperator,
       calculate,
       clear,
+      reset: clear,
       getDisplayValue() {
         return state.displayValue;
       },
