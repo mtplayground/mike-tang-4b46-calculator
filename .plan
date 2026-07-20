@@ -1,0 +1,49 @@
+# Calculator Architecture Plan
+
+## Product
+
+The GitHub issues define this as a bare static calculator project. No alternate product or agent branding should be introduced unless a later issue explicitly names it.
+
+## Module Structure
+
+- `index.html`: semantic calculator shell, display/readout, keypad buttons, utility controls, memory controls when Issue #10 is reached, and stable `data-action` / `data-value` hooks for JavaScript.
+- `styles.css`: minimal Apple-inspired visual system, responsive grid, focus states, press feedback, accessibility polish, and static deployment-safe styling.
+- `app.js`: calculator state machine, display formatting, error handling, decimal/clear behavior, percent, memory register, button wiring, keyboard mapping, and smoke-testable public boundaries.
+- `README.md`: local usage instructions in Issue #1 and static deployment notes in Issue #14.
+- Optional `tests/` or `test-notes/`: lightweight smoke-test scripts or notes for Issue #12 if the project remains dependency-free.
+
+## Shared Types and State
+
+Keep all runtime state in `app.js` as a small plain object:
+
+- `displayValue`: string currently shown to the user.
+- `storedValue`: number or `null` for the accumulated left operand.
+- `pendingOperator`: one of `add`, `subtract`, `multiply`, `divide`, or `null`.
+- `waitingForOperand`: boolean indicating the next digit should start a new entry.
+- `error`: string or `null`, recoverable through clear/reset.
+- `memoryValue`: number, with a derived memory indicator when non-zero.
+
+Use centralized action handlers so click, touch, and keyboard input call the same functions. Keep formatting in one helper to avoid inconsistent output between operators, percent, memory recall, and equals.
+
+## Dependencies Between Issues
+
+- Issue #1 establishes the static file layout and README.
+- Issue #2 depends on #1 and provides the DOM contract used by later JavaScript and CSS work.
+- Issue #3 depends on #1/#2 structure and sets the base visual language.
+- Issue #4 depends on the script file from #1 and creates the arithmetic engine.
+- Issues #5 and #6 build on #4 by adding formatting, errors, decimals, and reset behavior.
+- Issue #7 depends on #2 and #3 to wire the existing buttons and interaction feedback.
+- Issue #8 depends on the styled layout and focuses on responsive behavior.
+- Issues #9 and #10 extend the same state machine and markup with percent and memory functions.
+- Issue #11 reuses the button/action handlers from #7.
+- Issue #12 should run after arithmetic, formatting, percent, memory, and keyboard behavior exist.
+- Issues #13 and #14 should be late-stage passes for accessibility, polish, README, and static hosting validation.
+
+## Key Design Decisions
+
+- Use plain HTML, CSS, and JavaScript only; no bundler, framework, package manager, or build step.
+- Treat `index.html`, `styles.css`, and `app.js` as directly deployable static assets.
+- Preserve one source of truth for calculator behavior in JavaScript action handlers.
+- Prefer semantic buttons with ARIA labels and data attributes over DOM text parsing.
+- Make divide-by-zero and invalid states non-crashing and recoverable via clear.
+- Use responsive CSS primitives (`grid`, `clamp`, fixed aspect ratios, and viewport constraints) so the calculator remains tappable and legible on mobile and desktop.
