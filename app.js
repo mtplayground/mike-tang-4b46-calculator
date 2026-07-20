@@ -150,6 +150,17 @@
       return true;
     }
 
+    function calculatePercentValue(inputValue) {
+      if (
+        state.storedValue !== null
+        && (state.pendingOperator === "add" || state.pendingOperator === "subtract")
+      ) {
+        return state.storedValue * (inputValue / 100);
+      }
+
+      return inputValue / 100;
+    }
+
     function snapshot() {
       return {
         currentOperand: state.currentOperand,
@@ -251,6 +262,25 @@
       return snapshot();
     }
 
+    function applyPercent() {
+      if (state.error) {
+        return snapshot();
+      }
+
+      const inputValue = Number(state.currentOperand);
+      const percentValue = calculatePercentValue(inputValue);
+
+      if (!Number.isFinite(percentValue)) {
+        setError(GENERIC_ERROR_MESSAGE);
+        return snapshot();
+      }
+
+      setCurrentOperand(percentValue);
+      state.waitingForOperand = false;
+
+      return snapshot();
+    }
+
     function clear() {
       resetState();
       return snapshot();
@@ -259,6 +289,7 @@
     return {
       inputDigit,
       inputDecimal,
+      applyPercent,
       chooseOperator,
       calculate,
       clear,
@@ -286,7 +317,7 @@
       case "clear":
         return engine.clear();
       case "percent":
-        return engine.getState();
+        return engine.applyPercent();
       default:
         return engine.getState();
     }
