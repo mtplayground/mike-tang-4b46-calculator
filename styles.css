@@ -8,10 +8,12 @@
   --key-bg: #f2f3f5;
   --key-bg-hover: #e8eaed;
   --utility-bg: #e5e7eb;
-  --operator-bg: #4f7cff;
-  --operator-bg-hover: #3f6fed;
+  --utility-bg-hover: #dfe3e8;
+  --operator-bg: #0b66c3;
+  --operator-bg-hover: #0758a8;
   --operator-text: #ffffff;
   --border: #d7d9de;
+  --focus-ring: #005fcc;
   --shadow: 0 18px 50px rgb(29 29 31 / 12%);
   --calculator-width: 420px;
   --panel-padding: 24px;
@@ -99,6 +101,17 @@ h1 {
   border: 1px solid var(--border);
   border-radius: 8px;
   box-shadow: inset 0 1px 2px rgb(29 29 31 / 5%);
+  white-space: nowrap;
+  text-overflow: clip;
+}
+
+.calculator__display[data-state="error"] {
+  display: grid;
+  place-items: center end;
+  font-size: clamp(1.35rem, 7vw, 2rem);
+  font-weight: 600;
+  line-height: 1.15;
+  color: #b42318;
 }
 
 .calculator__controls {
@@ -155,19 +168,30 @@ button {
   cursor: pointer;
   touch-action: manipulation;
   user-select: none;
+  -webkit-tap-highlight-color: transparent;
 }
 
-button:hover {
+button:hover,
+button:focus-visible {
   background: var(--key-bg-hover);
 }
 
 button:focus-visible {
-  outline: 3px solid rgb(79 124 255 / 35%);
+  outline: 3px solid var(--focus-ring);
   outline-offset: 3px;
+  box-shadow:
+    0 0 0 5px rgb(255 255 255 / 92%),
+    0 0 0 8px rgb(0 95 204 / 26%),
+    0 4px 12px rgb(29 29 31 / 12%);
 }
 
 .calculator__utilities button {
   background: var(--utility-bg);
+}
+
+.calculator__utilities button:hover,
+.calculator__utilities button:focus-visible {
+  background: var(--utility-bg-hover);
 }
 
 .calculator__memory button {
@@ -183,6 +207,10 @@ button:focus-visible {
 }
 
 .calculator__operators button:hover {
+  background: var(--operator-bg-hover);
+}
+
+.calculator__operators button:focus-visible {
   background: var(--operator-bg-hover);
 }
 
